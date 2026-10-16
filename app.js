@@ -1,6 +1,6 @@
 /* Biblioteca técnica GH — versión web. Se arma con herramientas/construir_web.py; no editar a mano. */
 "use strict";
-var FRONTEND_VERSION = '2026-10-16T14:55';
+var FRONTEND_VERSION = '2026-10-16T14:57';
 var BACKEND_URL = 'https://script.google.com/macros/s/AKfycbwZC6NAzLDUleScxQb57m8T675gvtHvkn7m0R_qoPfU7_Gtv9E34_VgPmCiekUk_KHU/exec';
 var BACKEND_ESPEJO = 'https://script.google.com/macros/s/AKfycbwz5Eu-ScQ0qgUJQpMDE8GyotV92qIZNZn4aL1zsb269LiW0USACRPrZ1uwGG1POfxnTQ/exec';
 var CLIENT_ID = '585469655594-8aj9hjmf7d4noglr1th673dbiia8ftkv.apps.googleusercontent.com';
