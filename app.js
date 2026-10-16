@@ -1,6 +1,6 @@
 /* Biblioteca técnica GH — versión web. Se arma con herramientas/construir_web.py; no editar a mano. */
 "use strict";
-var FRONTEND_VERSION = '2026-10-16T04:09';
+var FRONTEND_VERSION = '2026-10-16T04:50';
 var BACKEND_URL = 'https://script.google.com/macros/s/AKfycbwZC6NAzLDUleScxQb57m8T675gvtHvkn7m0R_qoPfU7_Gtv9E34_VgPmCiekUk_KHU/exec';
 var BACKEND_ESPEJO = 'https://script.google.com/macros/s/AKfycbwz5Eu-ScQ0qgUJQpMDE8GyotV92qIZNZn4aL1zsb269LiW0USACRPrZ1uwGG1POfxnTQ/exec';
 var CLIENT_ID = '585469655594-8aj9hjmf7d4noglr1th673dbiia8ftkv.apps.googleusercontent.com';
@@ -611,6 +611,46 @@ function calc(p) {
 }
 const fmtT = m => m < 1 ? Math.round(m * 60) + " s" : m < 120 ? fmt(Math.round(m)) + " min" : fmt(+(m / 60).toFixed(1)) + " h";
 
+
+// ------------------------------------------------------------------ muestreo compartido
+// Qué parámetros pueden ir en el mismo filtro / tubo / instrumento y cuáles no (reglas en
+// herramientas/compatibilidad.py, motor en web/plan.js). Siempre es una sugerencia.
+S.puestos = 1;
+async function asegurarMotor() {
+  if (S.ix) return S.ix;
+  let cat = S.cat;
+  if (!cat.muestreo) {
+    const extra = await fetch("/api/muestreo").then(r => r.json()).catch(() => ({}));
+    if (!extra.muestreo) return null;
+    cat = {...cat, muestreo: extra.muestreo, equiposCal: extra.equiposCal, ignorar: extra.ignorar,
+      parametros: cat.parametros.map(p => ({...p, ...(extra.parametros[p.id] || {})}))};
+  }
+  S.ix = GHPlan.indexar(cat);
+  return S.ix;
+}
+function bloqueMuestreo(sel) {
+  const m = GHPlan.agruparMuestreo(S.ix, sel.map(p => p.id), {jornada: S.jornada, muestras: S.puestos});
+  const nom = id => S.ix.porId[id] ? S.ix.porId[id].nombre : id;
+  const r = m.resumen;
+  const grupos = m.grupos.map(g => {
+    const comparte = g.compartido && g.estado !== "no_compatible";
+    return `<div class="bloque" style="margin-bottom:10px;${comparte ? "border-left:3px solid var(--verde)" : ""}">
+      <h5>${comparte ? '<span class="chip nueva">Comparten</span> ' : ""}${esc(g.nombre)}</h5>
+      <div style="font-size:13px">${g.nombresFichas.map(esc).join(" + ")}</div>
+      ${g.sugerido ? `<div style="font-weight:600;margin:6px 0">Bomba a ${fmt(g.sugerido.caudal)} L/min durante ${fmt(g.sugerido.tiempo)} min = ${fmt(g.sugerido.volumen)} L</div>` : (g.bomba ? "" : '<div style="font-weight:600;margin:6px 0">Sin bomba: lectura en el momento</div>')}
+      ${g.avisos.map(a => `<div class="aviso ojo">${ico.alerta}<div>${esc(a)}</div></div>`).join("")}
+      ${g.notas.map(n => `<div class="aviso">${ico.info}<div>${esc(n.texto)} <small style="color:var(--label-3)">[${esc(n.fuente)}]</small></div></div>`).join("")}
+    </div>`;
+  }).join("");
+  const no = m.noComparten.map(e => `<div style="font-size:13px;margin:5px 0"><b>${esc(nom(e.a))} / ${esc(nom(e.b))}</b> — ${esc(e.razon)} <small style="color:var(--label-3)">[${esc(e.fuente)}]</small></div>`).join("");
+  const red = m.redundantes.map(e => `<div style="font-size:13px;margin:5px 0"><b>${esc(nom(e.a))}</b> ya sale con ${esc(nom(e.b))} — ${esc(e.razon)} <small style="color:var(--label-3)">[${esc(e.fuente)}]</small></div>`).join("");
+  return `<div class="pcard"><div class="h"><h3>Muestreo: qué se puede compartir</h3><span class="g">sugerencia</span></div>
+    <label style="font-size:13px;display:block;margin-bottom:8px">Puestos a muestrear <input type="number" id="puestos" min="1" value="${S.puestos}" style="width:64px"></label>
+    <p style="font-size:13px;color:var(--label-2);margin:0 0 10px">Por puesto: <b>${r.mediosCompartiendo}</b> medio(s) de captación${r.mediosSinCompartir !== r.mediosCompartiendo ? ` en vez de ${r.mediosSinCompartir} si no se comparte` : ""} · <b>${r.bombas}</b> bomba(s) ·
+      ${m.muestras} puesto(s) → ${m.muestras} medio(s) de cada tipo, más al menos <b>${m.blancos}</b> blancos de campo por lote. La decisión final es del técnico y del laboratorio.</p>
+    ${grupos}${(no || red) ? `<h5 style="margin:12px 0 4px">No comparten</h5>${no}${red}` : ""}</div>`;
+}
+
 function pintarHoja() {
   const sel = S.cat.parametros.filter(p => S.plan.has(p.id));
   if (!sel.length) {
@@ -643,6 +683,7 @@ function pintarHoja() {
           ${p.equipos.length ? `<div>${p.equipos.map(k => { const e = estadoEquipo(k); return `<div class="eq"><div>${esc(S.cat.equipos[k] || k)}${e.c?.aviso ? `<small>${esc(e.c.aviso)}</small>` : ""}</div><span class="estado ${e.cls}">${esc(e.txt)}</span></div>`; }).join("")}</div>` : ""}
         </div>
       </div></div>`).join("")}
+    ${S.ix ? bloqueMuestreo(sel) : ""}
     <div class="pcard"><div class="h"><h3>Para llevar</h3></div>
       <div class="check">
         ${equipos.map(k => { const e = estadoEquipo(k); return `<label><input type="checkbox"> ${esc(S.cat.equipos[k] || k)} <span class="estado ${e.cls}" style="margin-left:auto">${esc(e.txt)}</span></label>`; }).join("")}
@@ -653,6 +694,8 @@ function pintarHoja() {
         <label><input type="checkbox"> GPS / coordenadas de cada punto (PEM 008)</label>
       </div></div>`;
   $("#jornada").onchange = e => { S.jornada = Math.max(1, +e.target.value || 480); pintarHoja(); };
+  if ($("#puestos")) $("#puestos").onchange = e => { S.puestos = Math.max(1, +e.target.value || 1); pintarHoja(); };
+  if (!S.ix && !S.motorPedido) { S.motorPedido = true; asegurarMotor().then(ix => { if (ix) pintarHoja(); }).catch(() => {}); }
   $("#limpiar").onclick = () => { S.plan.clear(); guardarPlan(); pintarSelector(); pintarHoja(); };
   $$("#hoja [data-caudal]").forEach(i => i.onchange = () => { S.caudales[i.dataset.caudal] = +i.value; pintarHoja(); });
   $$("#hoja [data-tiempo]").forEach(i => i.onchange = () => { S.tiempos[i.dataset.tiempo] = Math.max(1, +i.value || 1); pintarHoja(); });
