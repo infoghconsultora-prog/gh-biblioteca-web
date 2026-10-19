@@ -1,6 +1,6 @@
 /* Biblioteca técnica GH — versión web. Se arma con herramientas/construir_web.py; no editar a mano. */
 "use strict";
-var FRONTEND_VERSION = '2026-10-16T14:57';
+var FRONTEND_VERSION = '2026-10-19T16:25';
 var BACKEND_URL = 'https://script.google.com/macros/s/AKfycbwZC6NAzLDUleScxQb57m8T675gvtHvkn7m0R_qoPfU7_Gtv9E34_VgPmCiekUk_KHU/exec';
 var BACKEND_ESPEJO = 'https://script.google.com/macros/s/AKfycbwz5Eu-ScQ0qgUJQpMDE8GyotV92qIZNZn4aL1zsb269LiW0USACRPrZ1uwGG1POfxnTQ/exec';
 var CLIENT_ID = '585469655594-8aj9hjmf7d4noglr1th673dbiia8ftkv.apps.googleusercontent.com';
@@ -783,6 +783,113 @@ function pintarObs() {
     ${escaneados.length ? `<div class="bloque"><h5>PDF escaneados, sin texto para buscar (${escaneados.length})</h5>${escaneados.map(item).join("")}</div>` : ""}
   </div>`;
   $$("#v-obs [data-doc]").forEach(b => b.onclick = () => abrirDoc(b.dataset.doc));
+}
+
+// ------------------------------------------------------------------ agregar archivos
+const NUEVOS = [];
+let CARPETAS = null;
+const dlg = $("#agregar");
+
+$("#agregar-btn").onclick = async () => {
+  NUEVOS.length = 0; pintarNuevos();
+  dlg.showModal();
+  if (!CARPETAS) CARPETAS = await fetch("/api/carpetas").then(r => r.json()).catch(() => []);
+};
+$("#agregar-cerrar").onclick = () => dlg.close();
+dlg.addEventListener("click", e => { if (e.target === dlg) dlg.close(); });
+const zona = $("#zona"), input = $("#agregar-input");
+zona.onclick = () => input.click();
+zona.onkeydown = e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); input.click(); } };
+input.onchange = () => { sumar([...input.files]); input.value = ""; };
+zona.addEventListener("dragover", e => { e.preventDefault(); zona.classList.add("sobre"); });
+zona.addEventListener("dragleave", () => zona.classList.remove("sobre"));
+zona.addEventListener("drop", e => { e.preventDefault(); zona.classList.remove("sobre"); sumar([...e.dataTransfer.files]); });
+
+async function sha1(file) {
+  const h = await crypto.subtle.digest("SHA-1", await file.arrayBuffer());
+  return [...new Uint8Array(h)].map(b => b.toString(16).padStart(2, "0")).join("");
+}
+async function sumar(files) {
+  if (!CARPETAS) CARPETAS = await fetch("/api/carpetas").then(r => r.json()).catch(() => []);
+  for (const file of files) {
+    if (NUEVOS.some(n => n.file.name === file.name && n.file.size === file.size)) continue;
+    const n = {file, info: null, carpeta: "", estado: "analizando"};
+    NUEVOS.push(n); pintarNuevos();
+    try {
+      const sha = await sha1(file);
+      n.info = await fetch(`/api/analizar?nombre=${encodeURIComponent(file.name)}&sha=${sha}`).then(r => r.json());
+      n.carpeta = n.info.sugerida || "";
+      n.estado = n.info.duplicado ? "duplicado" : n.info.aceptado ? "listo" : "rechazado";
+    } catch { n.estado = "error"; }
+    pintarNuevos();
+  }
+}
+function opcionesCarpeta(sel) {
+  const lista = CARPETAS || [];
+  return `<option value="">Elegí la carpeta…</option>` + lista.map(c =>
+    `<option value="${esc(c)}" ${c === sel ? "selected" : ""}>${esc(c.replace(/\//g, " › "))}</option>`).join("");
+}
+function pintarNuevos() {
+  const cont = $("#nuevos");
+  cont.innerHTML = NUEVOS.map((n, i) => {
+    const inf = n.info || {};
+    let aviso = "";
+    if (n.estado === "analizando") aviso = `<div class="aviso info">${ico.info}<div>Revisando…</div></div>`;
+    else if (n.estado === "error") aviso = `<div class="aviso mal">${ico.alerta}<div>No se pudo analizar el archivo.</div></div>`;
+    else if (n.estado === "rechazado") aviso = `<div class="aviso mal">${ico.alerta}<div>Tipo de archivo no admitido (.${esc(inf.ext)}).</div></div>`;
+    else if (n.estado === "duplicado") aviso = `<div class="aviso ojo">${ico.alerta}<div>Ya está en la biblioteca, idéntico: <b>${esc(inf.duplicado.ruta)}</b>. No hace falta subirlo.</div></div>`;
+    else if (n.estado === "guardado") aviso = `<div class="aviso bien">${ico.ok}<div>Guardado en <b>${esc(n.ruta)}</b></div></div>`;
+    else if (n.estado === "fallo") aviso = `<div class="aviso mal">${ico.alerta}<div>${esc(n.error)}</div></div>`;
+    else if (inf.doc) aviso = `<div class="aviso info">${ico.info}<div>Se suma a <b>${esc((inf.doc.codigo ? inf.doc.codigo + " · " : "") + inf.doc.titulo)}</b>
+        (hoy se muestra «${esc(inf.doc.principal)}»${inf.doc.etiqueta ? ", " + esc(inf.doc.etiqueta) : ""}). Si este es más nuevo, pasa a ser el principal y el otro queda como versión anterior.</div></div>`;
+    else aviso = `<div class="aviso bien">${ico.ok}<div>Documento nuevo${inf.codigo ? ` · se reconoce como <b>${esc(inf.codigo)}</b>` : ""}.</div></div>`;
+    const editable = n.estado === "listo";
+    return `<div class="nuevo ${n.estado === "guardado" ? "listo" : ""}">
+      <div class="fila1"><span class="n">${esc(n.file.name)}<small>${tam(n.file.size)}${inf.version ? " · " + esc(inf.version) : ""}</small></span>
+        ${n.estado !== "guardado" ? `<button class="quitar" data-quitar="${i}" title="Quitar">✕</button>` : ""}</div>
+      ${editable ? `<label>Carpeta del Drive${inf.sugerida ? " (sugerida)" : ""}<select data-carpeta="${i}">${opcionesCarpeta(n.carpeta)}</select></label>` : ""}
+      ${aviso}</div>`;
+  }).join("");
+  $$("#nuevos [data-quitar]").forEach(b => b.onclick = () => { NUEVOS.splice(+b.dataset.quitar, 1); pintarNuevos(); });
+  $$("#nuevos [data-carpeta]").forEach(s => s.onchange = () => { NUEVOS[+s.dataset.carpeta].carpeta = s.value; actualizarBoton(); });
+  actualizarBoton();
+}
+function actualizarBoton() {
+  const listos = NUEVOS.filter(n => n.estado === "listo");
+  const b = $("#agregar-guardar");
+  b.disabled = !listos.length || listos.some(n => !n.carpeta);
+  b.textContent = listos.length > 1 ? `Guardar ${listos.length} archivos en el Drive` : "Guardar en el Drive";
+}
+$("#agregar-guardar").onclick = async () => {
+  const b = $("#agregar-guardar");
+  b.disabled = true; b.textContent = "Guardando…";
+  const guardados = [];
+  for (const n of NUEVOS.filter(n => n.estado === "listo")) {
+    try {
+      const r = await fetch(`/api/subir?nombre=${encodeURIComponent(n.file.name)}&carpeta=${encodeURIComponent(n.carpeta)}`,
+        {method: "POST", headers: {"Content-Type": "application/octet-stream"}, body: n.file});
+      const j = await r.json();
+      if (!r.ok) throw new Error(j.error || "Error al guardar");
+      n.estado = "guardado"; n.ruta = j.ruta; guardados.push(j.ruta);
+    } catch (e) { n.estado = "fallo"; n.error = e.message; }
+    pintarNuevos();
+  }
+  if (!guardados.length) return;
+  b.textContent = "Actualizando la biblioteca…";
+  await fetch("/api/reindexar", {method: "POST"});
+  await esperarIndice();
+  await cargar();
+  const id = S.docs.find(d => [d.principal, ...d.formatos, ...d.anteriores].some(v => v.rutas.includes(guardados[0])))?.id;
+  toast(guardados.length > 1 ? `${guardados.length} archivos agregados` : "Archivo agregado");
+  dlg.close();
+  if (id) { irA("lib"); abrirDoc(id); }
+};
+async function esperarIndice() {
+  for (let i = 0; i < 300; i++) {
+    const e = await fetch("/api/estado").then(r => r.json());
+    if (!e.indexando) { if (e.error) toast("Error al indexar: " + e.error); return; }
+    await new Promise(r => setTimeout(r, 1000));
+  }
 }
 
 // ------------------------------------------------------------------ arranque (lo llama el inicio de sesión)

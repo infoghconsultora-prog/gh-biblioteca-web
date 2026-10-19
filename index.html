@@ -272,13 +272,41 @@ table.m td.p{font-weight:600;min-width:200px}
 .linaje:last-child{border-bottom:0}
 .linaje .flecha{color:var(--label-3)}
 
+/* ---------- agregar archivos */
+.btnadd{border:0;background:var(--accent);color:var(--on-accent);border-radius:10px;height:36px;padding:0 14px 0 11px;display:flex;align-items:center;gap:6px;font-weight:600;font-size:14px;cursor:pointer;flex:none;transition:transform .15s var(--ease)}
+.btnadd:active{transform:scale(.97)}
+dialog.hoja-add{border:0;padding:0;border-radius:var(--r-xl);width:min(760px,94vw);max-height:88vh;background:var(--bg);color:var(--label);box-shadow:var(--shadow-pop);overflow:hidden}
+dialog.hoja-add[open]{display:flex;flex-direction:column;animation:entra .3s var(--ease)}
+dialog.hoja-add::backdrop{background:rgba(20,23,18,.4);-webkit-backdrop-filter:blur(2px);backdrop-filter:blur(2px)}
+.add-head{display:flex;align-items:center;gap:10px;padding:18px 22px 12px}
+.add-head h2{margin:0;font-size:19px;font-weight:680;flex:1}
+.add-body{padding:4px 22px 16px;overflow:auto;display:flex;flex-direction:column;gap:12px}
+.zona{border:1.5px dashed var(--separator);border-radius:var(--r-lg);padding:26px 16px;text-align:center;color:var(--label-2);cursor:pointer;transition:border-color .2s,background .2s;background:var(--surface)}
+.zona:hover,.zona.sobre{border-color:var(--accent);background:var(--verde-bg)}
+.zona b{color:var(--label);display:block;font-size:16px;margin-bottom:2px}
+.nuevo{background:var(--surface);border-radius:var(--r-md);box-shadow:var(--shadow-card);padding:12px 14px;display:flex;flex-direction:column;gap:8px}
+.nuevo .fila1{display:flex;gap:10px;align-items:center}
+.nuevo .fila1 .n{flex:1;min-width:0;font-weight:600;font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.nuevo .fila1 small{color:var(--label-3);font-weight:400;margin-left:6px}
+.nuevo .quitar{border:0;background:transparent;color:var(--label-3);cursor:pointer;font-size:18px;line-height:1;padding:4px 6px;border-radius:8px}
+.nuevo .quitar:hover{color:var(--rojo);background:var(--rojo-bg)}
+.nuevo label{display:flex;flex-direction:column;gap:3px;font-size:12px;color:var(--label-2)}
+.nuevo select{font:14px var(--font);color:var(--label);background:var(--fill);border:1.5px solid transparent;border-radius:9px;padding:7px 10px;width:100%;outline:none}
+.nuevo select:focus{border-color:var(--accent);background:var(--surface)}
+.nuevo .aviso{margin:0}
+.nuevo.listo{opacity:.65}
+.add-pie{display:flex;gap:10px;align-items:center;padding:12px 22px 18px;border-top:.5px solid var(--separator);background:var(--surface-2)}
+.add-pie .hint{flex:1;font-size:12.5px;color:var(--label-3);line-height:17px}
+.add-pie .btn[disabled]{opacity:.45;cursor:not-allowed;transform:none}
+@media (max-width:620px){.add-pie{flex-wrap:wrap}.add-pie .hint{flex-basis:100%}.add-pie .btn{width:100%;justify-content:center}.add-head h2{font-size:17px}}
 .toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%) translateY(30px);background:var(--label);color:var(--bg);padding:10px 16px;border-radius:12px;font-size:14px;opacity:0;transition:all .35s var(--ease);z-index:60;pointer-events:none}
 .toast.ver{opacity:1;transform:translateX(-50%)}
 
 @media (max-width:1240px){
   .bar{flex-wrap:wrap;row-gap:8px}
   .buscador{order:3;max-width:none;flex:1 1 100%}
-  #reindex{order:2;margin-left:auto}
+  #agregar-btn{order:2;margin-left:auto}
+  #reindex{order:2}
 }
 @media (max-width:1100px){
   .hero{grid-template-columns:repeat(3,1fr)}
@@ -338,6 +366,7 @@ table.m td.p{font-weight:600;min-width:200px}
       <input id="q" type="search" placeholder="Buscar por título, código o resumen…" autocomplete="off">
       <kbd>⌘K</kbd>
     </div>
+    <button class="btnadd" id="agregar-btn" title="Agregar archivos nuevos a la biblioteca"><svg class="i" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>Agregar</button>
   </div>
 </header>
 
@@ -380,9 +409,22 @@ table.m td.p{font-weight:600;min-width:200px}
 <div class="velo" id="velo"></div>
 <aside class="panel" id="panel" aria-hidden="true"></aside>
 <div class="toast" id="toast"></div>
+<dialog class="hoja-add" id="agregar">
+  <div class="add-head"><h2>Agregar archivos a la biblioteca</h2>
+    <button class="icobtn" id="agregar-cerrar" title="Cerrar"><svg class="i" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></svg></button></div>
+  <div class="add-body">
+    <div class="zona" id="zona" tabindex="0"><b>Arrastrá los archivos acá</b>o hacé clic para elegirlos · PDF, Word, Excel, PowerPoint, video</div>
+    <input type="file" id="agregar-input" multiple hidden accept=".pdf,.doc,.docx,.xls,.xlsx,.xlsm,.ppt,.pptx,.html,.htm,.mp4,.avi,.rtf">
+    <div id="nuevos" style="display:flex;flex-direction:column;gap:10px"></div>
+  </div>
+  <div class="add-pie">
+    <div class="hint">Se copian a la carpeta elegida del Drive (nunca se pisa un archivo: si el nombre existe se agrega «(2)»). Si es una versión nueva de algo que ya está, pasa a ser la que se muestra.</div>
+    <button class="btn primario" id="agregar-guardar" disabled>Guardar en el Drive</button>
+  </div>
+</dialog>
 
 </div>
-<script src="plan.js?v=2026-10-16T14:57"></script>
-<script src="app.js?v=2026-10-16T14:57"></script>
+<script src="plan.js?v=2026-10-19T16:25"></script>
+<script src="app.js?v=2026-10-19T16:25"></script>
 </body>
 </html>
