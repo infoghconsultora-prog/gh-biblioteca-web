@@ -405,6 +405,7 @@ html[data-escala="150"]{zoom:1.5;--gh-z:1.5}
 .gh-esc-n{position:absolute;left:50%;transform:translateX(-50%);bottom:-9px;min-width:30px;padding:0 4px;border-radius:999px;background:#4a7a1e;color:#fff;
   font:700 11px/16px -apple-system,"SF Pro Text",system-ui,sans-serif;text-align:center}
 .gh-esc-n:empty{display:none}
+.gh-esc[hidden]{display:none}
 .gh-esc-sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
 @supports not (zoom:1){.gh-esc{display:none}}
 /* con zoom, vh/dvh también se multiplican: se divide para que las pantallas altas sigan midiendo el alto real */
@@ -452,7 +453,7 @@ dialog.hoja-add{max-height:calc(88vh / var(--gh-z,1))}
       <kbd>⌘K</kbd>
     </div>
     <button class="btnadd" id="agregar-btn" title="Agregar archivos nuevos a la biblioteca"><svg class="i" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>Agregar</button>
-    <button type="button" class="gh-esc" id="btnEscala" aria-label="Agrandar letra" title="Agrandar letra"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3M11 8v6M8 11h6"/></svg><span class="gh-esc-n" id="escalaNivel" aria-hidden="true"></span></button><span class="gh-esc-sr" id="escalaLive" role="status" aria-live="polite"></span>
+    <button type="button" class="gh-esc" id="btnEscalaMenos" aria-label="Achicar letra" title="Achicar letra" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3M8 11h6"/></svg></button><button type="button" class="gh-esc" id="btnEscala" aria-label="Agrandar letra" title="Agrandar letra"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3M11 8v6M8 11h6"/></svg><span class="gh-esc-n" id="escalaNivel" aria-hidden="true"></span></button><span class="gh-esc-sr" id="escalaLive" role="status" aria-live="polite"></span>
   </div>
 </header>
 
@@ -518,18 +519,17 @@ dialog.hoja-add{max-height:calc(88vh / var(--gh-z,1))}
   function leer(){try{var v=parseInt(localStorage.getItem(K),10);return N.indexOf(v)<0?100:v}catch(e){return 100}}
   function poner(v,avisar){
     if(v===100)h.removeAttribute('data-escala');else h.setAttribute('data-escala',v);
-    document.getElementById('escalaNivel').textContent=v===100?'':v+'%';
+    document.getElementById('escalaNivel').textContent=v===100?'':v+'%';var m=document.getElementById('btnEscalaMenos');if(m)m.hidden=(v===100);
     b.title='Agrandar letra (ahora '+v+'%)';
     if(avisar)document.getElementById('escalaLive').textContent='Tamaño de la interfaz: '+v+'%';
   }
   var v=leer();poner(v,false);
-  b.addEventListener('click',function(){
-    v=N[(N.indexOf(v)+1)%N.length];poner(v,true);
-    try{if(v===100)localStorage.removeItem(K);else localStorage.setItem(K,String(v))}catch(e){}
-  });
+  function ir(n){v=n;poner(v,true);try{if(v===100)localStorage.removeItem(K);else localStorage.setItem(K,String(v))}catch(e){}}
+  b.addEventListener('click',function(){ir(N[(N.indexOf(v)+1)%N.length])});
+  var m=document.getElementById('btnEscalaMenos');if(m)m.addEventListener('click',function(){ir(N[Math.max(0,N.indexOf(v)-1)])});
 })();
 </script>
-<script src="plan.js?v=2026-10-23T14:08"></script>
-<script src="app.js?v=2026-10-23T14:08"></script>
+<script src="plan.js?v=2026-10-23T15:28"></script>
+<script src="app.js?v=2026-10-23T15:28"></script>
 </body>
 </html>
