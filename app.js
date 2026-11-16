@@ -1,6 +1,6 @@
 /* Biblioteca técnica GH — versión web. Se arma con herramientas/construir_web.py; no editar a mano. */
 "use strict";
-var FRONTEND_VERSION = '2026-11-16T13:22';
+var FRONTEND_VERSION = '2026-11-16T13:26';
 var BACKEND_URL = 'https://script.google.com/macros/s/AKfycbwZC6NAzLDUleScxQb57m8T675gvtHvkn7m0R_qoPfU7_Gtv9E34_VgPmCiekUk_KHU/exec';
 var BACKEND_ESPEJO = 'https://script.google.com/macros/s/AKfycbwz5Eu-ScQ0qgUJQpMDE8GyotV92qIZNZn4aL1zsb269LiW0USACRPrZ1uwGG1POfxnTQ/exec';
 var CLIENT_ID = '585469655594-8aj9hjmf7d4noglr1th673dbiia8ftkv.apps.googleusercontent.com';
@@ -201,6 +201,7 @@ async function cargar() {
   pintarHero(); pintarFiltros(); pintarResultados(); pintarPlan(); pintarMatriz(); pintarObs();
   const h = location.hash.match(/^#doc=(\w+)/);
   if (h && S.porId[h[1]]) abrirDoc(h[1]);
+  if (location.hash === "#agregar" && !dlg.open) { history.replaceState(null, "", location.pathname); $("#agregar-btn").click(); }
 }
 
 const vigentes = () => S.docs.filter(d => !d.reemplazadoPor);
@@ -792,10 +793,9 @@ const NUEVOS = [];
 let CARPETAS = null;
 const dlg = $("#agregar");
 
-$("#agregar-btn").onclick = async () => {
-  NUEVOS.length = 0; pintarNuevos();
-  dlg.showModal();
-  if (!CARPETAS) CARPETAS = await fetch("/api/carpetas").then(r => r.json()).catch(() => []);
+$("#agregar-btn").onclick = () => {
+  window.open("http://localhost:8796/#agregar", "gh-biblioteca-local");
+  toast("Se abre la Biblioteca de tu Mac. Si no carga, abrila con el ícono «GH Biblioteca».");
 };
 $("#agregar-cerrar").onclick = () => dlg.close();
 dlg.addEventListener("click", e => { if (e.target === dlg) dlg.close(); });
