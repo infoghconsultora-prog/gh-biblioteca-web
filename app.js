@@ -1,6 +1,6 @@
 /* Biblioteca técnica GH — versión web. Se arma con herramientas/construir_web.py; no editar a mano. */
 "use strict";
-var FRONTEND_VERSION = '2026-10-23T15:48';
+var FRONTEND_VERSION = '2026-11-16T13:22';
 var BACKEND_URL = 'https://script.google.com/macros/s/AKfycbwZC6NAzLDUleScxQb57m8T675gvtHvkn7m0R_qoPfU7_Gtv9E34_VgPmCiekUk_KHU/exec';
 var BACKEND_ESPEJO = 'https://script.google.com/macros/s/AKfycbwz5Eu-ScQ0qgUJQpMDE8GyotV92qIZNZn4aL1zsb269LiW0USACRPrZ1uwGG1POfxnTQ/exec';
 var CLIENT_ID = '585469655594-8aj9hjmf7d4noglr1th673dbiia8ftkv.apps.googleusercontent.com';
@@ -374,6 +374,8 @@ $("#q").addEventListener("input", e => {
     if (q.trim().length < 2) { S.fts = null; return; }
     const r = [];
     if (q !== S.q) return;
+    // si la búsqueda trae documentos que esta pestaña no conoce, el catálogo cambió: recargarlo
+    if (r.some(x => !S.porId[x.id])) await cargar();
     S.fts = Object.fromEntries(r.map((x, i) => [x.id, {...x, pos: i}])); S.ftsQ = q;
     pintarResultados();
   }, 220);
@@ -820,7 +822,7 @@ async function sumar(files) {
       n.info = await fetch(`/api/analizar?nombre=${encodeURIComponent(file.name)}&sha=${sha}`).then(r => r.json());
       n.carpeta = n.info.sugerida || "";
       n.estado = n.info.duplicado ? "duplicado" : n.info.aceptado ? "listo" : "rechazado";
-    } catch { n.estado = "error"; }
+    } catch { n.estado = "error"; n.error = "No pude hablar con el servidor de la biblioteca. Cerrá esta pestaña y abrila de nuevo con el ícono «Biblioteca» (o iniciar.command)."; }
     pintarNuevos();
   }
 }
@@ -835,7 +837,7 @@ function pintarNuevos() {
     const inf = n.info || {};
     let aviso = "";
     if (n.estado === "analizando") aviso = `<div class="aviso info">${ico.info}<div>Revisando…</div></div>`;
-    else if (n.estado === "error") aviso = `<div class="aviso mal">${ico.alerta}<div>No se pudo analizar el archivo.</div></div>`;
+    else if (n.estado === "error") aviso = `<div class="aviso mal">${ico.alerta}<div>${esc(n.error || "No se pudo analizar el archivo.")}</div></div>`;
     else if (n.estado === "rechazado") aviso = `<div class="aviso mal">${ico.alerta}<div>Tipo de archivo no admitido (.${esc(inf.ext)}).</div></div>`;
     else if (n.estado === "duplicado") aviso = `<div class="aviso ojo">${ico.alerta}<div>Ya está en la biblioteca, idéntico: <b>${esc(inf.duplicado.ruta)}</b>. No hace falta subirlo.</div></div>`;
     else if (n.estado === "guardado") aviso = `<div class="aviso bien">${ico.ok}<div>Guardado en <b>${esc(n.ruta)}</b></div></div>`;
